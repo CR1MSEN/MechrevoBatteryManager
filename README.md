@@ -1,3 +1,7 @@
+# 使用前一定要仔细阅读文档内容，避免造成机器损坏！
+
+Make sure to read the documentation carefully before use to avoid damaging the machine!
+
 # MechrevoBatteryManager
 
 此应用是根据C#开发，用于给机械革命系列笔记本，借助官方控制台操作将官方充电限制功能实现的程序
