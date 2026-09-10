@@ -1,4 +1,0 @@
-D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Service\bin\Release\MechrevoBatteryManager.Service.exe
-D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Service\bin\Release\MechrevoBatteryManager.Core.dll
-D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Service\obj\Release\MechrevoBatteryManager.Service.csprojResolveAssemblyReference.cache
-D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Service\obj\Release\MechrevoBatteryManager.Service.exe

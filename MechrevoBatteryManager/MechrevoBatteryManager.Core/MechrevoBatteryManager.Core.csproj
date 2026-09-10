@@ -1,8 +1,0 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup><OutputType>Library</OutputType><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><AssemblyName>MechrevoBatteryManager.Core</AssemblyName><RootNamespace>MechrevoBatteryManager</RootNamespace><PlatformTarget>x64</PlatformTarget></PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'"><OutputPath>bin\Debug\</OutputPath><DebugSymbols>true</DebugSymbols></PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release'"><OutputPath>bin\Release\</OutputPath><Optimize>true</Optimize></PropertyGroup>
-  <ItemGroup><Reference Include="System" /><Reference Include="System.Core" /><Reference Include="System.Web.Extensions" /></ItemGroup>
-  <ItemGroup><Compile Include="BatteryConfig.cs" /><Compile Include="EcClient.cs" /><Compile Include="ThresholdManager.cs" /><Compile Include="Properties\AssemblyInfo.cs" /></ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-</Project>
