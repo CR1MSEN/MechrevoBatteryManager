@@ -1,0 +1,4 @@
+D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Gui\bin\Release\MechrevoBatteryManager.exe
+D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Gui\bin\Release\MechrevoBatteryManager.Core.dll
+D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Gui\obj\Release\MechrevoBatteryManager.Gui.csprojResolveAssemblyReference.cache
+D:\Work\WorkFiles\Codex\MechrevoBatteryManager\MechrevoBatteryManager.Gui\obj\Release\MechrevoBatteryManager.exe
