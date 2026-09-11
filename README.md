@@ -2,12 +2,22 @@
 
 Make sure to read the documentation carefully before use to avoid damaging the machine!
 
+
+
 # MechrevoBatteryManager
 
-此应用是根据C#开发，用于给机械革命系列笔记本，借助官方控制台操作将官方充电限制功能实现的程序
+此应用是根据C#开发，用于给机械革命系列笔记本以及同方模具如XMG系列笔记本，借助官方控制台操作将官方充电限制功能实现的程序
 `注意：此应用也许不能在所有型号上运行，请自行鉴别`
-This app is developed in C# and is designed for the Mechrevo series laptops, using the official console to implement the official charging limit feature. 
+This app is developed in C# and is designed for the Mechrevo series laptops and Tongfang molds like the XMG series laptops, using the official console to implement the official charging limit feature. 
 `Note: This app might not work on all models, please check for yourself`
+
+
+
+``本程序已在翼龙（XMG Core），极光（XMG Neo），旷世（XMG Neo）机型上验证跑通``
+
+``This program has been verified to run on the Yilong(XMG Core), Jiguang(XMG Neo), and Kuangshi(XMG Neo) models.``
+
+
 
 ## 中文说明
 
@@ -49,16 +59,16 @@ C:\Program Files\OEM\BatteryManager\log\service.log
 - 服务每次启动只执行一次，不循环写入 EC。
 - `0x07A6` 暂不修改，因为其位定义具有机型差异。
 
-使用步骤：
+**使用步骤：**
 
 1. 进入`...\MechrevoBatteryManager\dist`路径，以管理员身份运行 `MechrevoBatteryManager.exe`。  <img width="827" height="477" alt="5996ce3f59957ee7771010dcb37b8718" src="https://github.com/user-attachments/assets/e2c4d153-095d-4365-983f-6fe1a8de0653" />
 
-**可能需要手动配置DLL文件路径**
+**（可能需要手动配置DLL文件路径）**
 
 1. 点击 **Read EC**，确认 `0x07B9/0x07D0` 读数正常。
 2. 设置阈值，应用并保存。(保存后你应该可以看到自己的电池图标变为了全智能充电模式)  <img width="110" height="42" alt="图片" src="https://github.com/user-attachments/assets/85db109e-f906-4d36-ae57-00b3621e7a73" />
 
-3. 点击 **Install service** 可将程序应用注册为系统服务与卸载脚本。
+3. 点击 **Install service** 可将程序应用注册为系统服务与卸载脚本，实现每次开机静默写入一次，防止被官方控制台覆盖。
 
 要在原始 GUI 或源文件消失后完全卸载服务,请在服务安装路径中以管理员身份运行 `Uninstall-MechrevoBatteryManager.cmd` 。# MechrevoBatteryManager
 
@@ -95,16 +105,16 @@ Safety behavior:
 - The service performs one apply attempt per service start and does not loop.
 - EC mode byte `0x07A6` is intentionally untouched because its layout is model-specific.
 
-Usage:
+**Usage:**
 
 1. Enter the path`...\MechrevoBatteryManager\dist`, Run `MechrevoBatteryManager.exe` as an administrator.  <img width="827" height="477" alt="5996ce3f59957ee7771010dcb37b8718" src="https://github.com/user-attachments/assets/bbea9436-a5d8-4901-9fad-736abf362d26" />
 
-**English or other language users might need to change the DLL path themselves**
+**(If you're an English user or other language user, you might need to follow a similar path in this document to go to the OEM folder and manually change the DLL path.)**
 
 3. Click **Read EC** to make sure the `0x07B9/0x07D0` readings are normal.
 4. Set the thresholds, then apply and save.(After saving, you should be able to see your battery icon change to full smart charging mode)  <img width="110" height="42" alt="图片" src="https://github.com/user-attachments/assets/09a8ca62-5973-4c6e-8aee-4a590032a3e4" />
 
-5. Click **Install service** to register the program as a system service along with the uninstall script.
+5. Click **Install service** to register the program as a system service along with the uninstall script, Make it write silently every time the computer starts up to prevent it from being overwritten by the official console.
 
 To completely uninstall the service after the original GUI or source files disappear, run `Uninstall-MechrevoBatteryManager.cmd` as an administrator in the service installation path. #MechrevoBatteryManager
 
