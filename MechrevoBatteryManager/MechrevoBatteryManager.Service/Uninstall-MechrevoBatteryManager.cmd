@@ -8,6 +8,6 @@ if not "%errorlevel%"=="0" (
 )
 sc.exe stop MechrevoBatteryManager >nul 2>&1
 sc.exe delete MechrevoBatteryManager >nul 2>&1
-echo Service removed. Cleaning the installation directory...
-start "" /b cmd.exe /c "timeout /t 2 /nobreak >nul & for /f \"delims=\" %%F in ('dir /b /a-d \"%~dp0\"') do del /f /q \"%~dp0%%F\" >nul 2>&1 & for /f \"delims=\" %%D in ('dir /b /ad \"%~dp0\" ^| findstr /v /i \"^log$\"') do rmdir /s /q \"%~dp0%%D\" >nul 2>&1"
+echo Service removed.
+start "" /b powershell.exe -NoProfile -WindowStyle Hidden -Command "$root='%~dp0'; Start-Sleep -Seconds 2; Get-ChildItem -LiteralPath $root -Force | Where-Object { $_.Name -ne 'log' } | Remove-Item -Recurse -Force"
 exit /b 0

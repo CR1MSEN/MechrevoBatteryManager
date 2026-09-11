@@ -18,11 +18,17 @@ namespace MechrevoBatteryManager.ServiceHost
         protected override void OnStop() { stop.Set(); if (worker != null) worker.Join(TimeSpan.FromSeconds(10)); }
         private void Run()
         {
-            var cfg = LoadServiceConfig();
-            if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
-            if (stop.WaitOne(TimeSpan.FromSeconds(cfg.StartupDelaySeconds))) return;
-            ApplyOnce();
-            new Thread(new ThreadStart(delegate { Stop(); })) { IsBackground = true }.Start();
+            try
+            {
+                var cfg = LoadServiceConfig();
+                if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
+                if (stop.WaitOne(TimeSpan.FromSeconds(cfg.StartupDelaySeconds))) return;
+                ApplyOnce();
+            }
+            finally
+            {
+                new Thread(new ThreadStart(delegate { try { Log("Service stopping automatically."); Stop(); } catch { } })) { IsBackground = true }.Start();
+            }
         }
         internal static void ApplyOnce()
         {

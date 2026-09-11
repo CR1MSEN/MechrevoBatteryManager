@@ -95,7 +95,7 @@ namespace MechrevoBatteryManager.Gui
                 status.Text = English ? "Service installed at " + ServiceInstallDirectory : "服务已安装到 " + ServiceInstallDirectory;
             });
         }
-        private void RemoveService() { Guard(delegate { RunSc("stop MechrevoBatteryManager", true); RunSc("delete MechrevoBatteryManager"); status.Text = English ? "Service removed." : "服务已卸载。"; }); }
+        private void RemoveService() { Guard(delegate { RunSc("stop MechrevoBatteryManager", true); RunSc("delete MechrevoBatteryManager"); var root = ServiceInstallDirectory.Replace("'", "''"); Process.Start(new ProcessStartInfo("powershell.exe", "-NoProfile -WindowStyle Hidden -Command \"$root='" + root + "'; Start-Sleep -Seconds 2; Get-ChildItem -LiteralPath $root -Force | Where-Object { $_.Name -ne 'log' } | Remove-Item -Recurse -Force\"") { UseShellExecute = false, CreateNoWindow = true }); status.Text = English ? "Service removed." : "服务已卸载。"; }); }
         private static void RunSc(string args, bool ignoreFailure = false) { var p = Process.Start(new ProcessStartInfo("sc.exe", args) { UseShellExecute = false, CreateNoWindow = true }); p.WaitForExit(); if (!ignoreFailure && p.ExitCode != 0) throw new InvalidOperationException("sc.exe failed with exit code " + p.ExitCode); }
     }
 }
