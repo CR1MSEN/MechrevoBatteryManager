@@ -1,0 +1,10 @@
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.log
+config.json
+MechrevoBatteryManager/MechrevoBatteryManager/dist/*.exe
+MechrevoBatteryManager/MechrevoBatteryManager/dist/*.dll
+MechrevoBatteryManager/MechrevoBatteryManager/dist/*.pdb

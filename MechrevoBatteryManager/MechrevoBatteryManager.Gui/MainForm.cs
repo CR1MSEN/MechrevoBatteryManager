@@ -11,6 +11,8 @@ namespace MechrevoBatteryManager.Gui
     public sealed class MainForm : Form
     {
         private const string ServiceInstallDirectory = @"C:\Program Files\OEM\BatteryManager";
+        private const string Series40Console = @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\GCUService.exe";
+        private const string Series50Console = @"C:\Program Files\OEM\机械革命控制中心\AiStoneService\MyControlCenter\GCUService.exe";
         private readonly NumericUpDown upper = new NumericUpDown { Minimum = 1, Maximum = 100, Width = 90 };
         private readonly NumericUpDown lower = new NumericUpDown { Minimum = 0, Maximum = 99, Width = 90 };
         private readonly NumericUpDown delay = new NumericUpDown { Minimum = 0, Maximum = 300, Width = 90 };
@@ -32,12 +34,35 @@ namespace MechrevoBatteryManager.Gui
             actions.Controls.Add(Button("Save", delegate { Save(); }));
             actions.Controls.Add(Button("Install service", delegate { InstallService(); }));
             actions.Controls.Add(Button("Remove service", delegate { RemoveService(); }));
-            panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); LoadConfig();
+            panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); LoadConfig(); DetectInstalledConsole();
         }
         private void Add(TableLayoutPanel p, string name, Control c) { p.Controls.Add(new Label { Text = name, AutoSize = true, Anchor = AnchorStyles.Left }, 0, nextRow); p.Controls.Add(c, 1, nextRow); nextRow++; }
         private static Button Button(string text, EventHandler click) { var b = new Button { Text = text, AutoSize = true }; b.Click += click; return b; }
         private BatteryConfig Current() { return new BatteryConfig { UpperLimit = (int)upper.Value, LowerLimit = (int)lower.Value, StartupDelaySeconds = (int)delay.Value, Enabled = enabled.Checked, OemDllPath = dllPath.Text }; }
         private void LoadConfig() { var c = BatteryConfig.Load(); upper.Value = c.UpperLimit; lower.Value = c.LowerLimit; delay.Value = c.StartupDelaySeconds; enabled.Checked = c.Enabled; dllPath.Text = c.OemDllPath; }
+        private void DetectInstalledConsole()
+        {
+            var detectedPath = File.Exists(Series40Console) ? Series40Console : (File.Exists(Series50Console) ? Series50Console : null);
+            if (detectedPath == null)
+            {
+                status.Text = "未检测到40系或50系控制台，保留当前 OEM DLL 路径。";
+                return;
+            }
+
+            var series = detectedPath == Series40Console ? "40" : "50";
+            var detectedDll = Path.Combine(Path.GetDirectoryName(detectedPath), "ACPIDriverDll.dll");
+            if (!File.Exists(detectedDll))
+            {
+                status.Text = string.Format("你当前安装的是{0}系控制台，但未找到 ACPIDriverDll.dll。", series);
+                return;
+            }
+
+            dllPath.Text = detectedDll;
+            var config = Current();
+            config.OemDllPath = detectedDll;
+            config.Save();
+            status.Text = string.Format("你当前安装的是{0}系控制台，已自动更新 DLL 路径。", series);
+        }
         private void Guard(Action action) { try { action(); } catch (Exception ex) { status.Text = "Error: " + ex.Message; MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error); } }
         private void ReadEc() { Guard(delegate { var r = ThresholdManager.Read(dllPath.Text); status.Text = string.Format("EC upper={0}, lower={1}. No values were written.", r.BeforeUpper, r.BeforeLower); }); }
         private void ApplyNow() { Guard(delegate { var c = Current(); c.Validate(); if (MessageBox.Show(this, string.Format("Write upper {0}% and lower {1}% to EC?", c.UpperLimit, c.LowerLimit), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return; var r = ThresholdManager.Apply(c); status.Text = string.Format("Verified: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower); }); }

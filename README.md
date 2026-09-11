@@ -53,10 +53,12 @@ C:\Program Files\OEM\BatteryManager\log\service.log
 
 1. 进入`...\MechrevoBatteryManager\dist`路径，以管理员身份运行 `MechrevoBatteryManager.exe`。  <img width="827" height="477" alt="5996ce3f59957ee7771010dcb37b8718" src="https://github.com/user-attachments/assets/e2c4d153-095d-4365-983f-6fe1a8de0653" />
 
-2. 点击 **Read EC**，确认 `0x07B9/0x07D0` 读数正常。
-3. 设置阈值，应用并保存。(保存后你应该可以看到自己的电池图标变为了全智能充电模式)  <img width="110" height="42" alt="图片" src="https://github.com/user-attachments/assets/85db109e-f906-4d36-ae57-00b3621e7a73" />
+**可能需要手动配置DLL文件路径**
 
-5. 点击 **Install service** 可将程序应用注册为系统服务与卸载脚本。
+1. 点击 **Read EC**，确认 `0x07B9/0x07D0` 读数正常。
+2. 设置阈值，应用并保存。(保存后你应该可以看到自己的电池图标变为了全智能充电模式)  <img width="110" height="42" alt="图片" src="https://github.com/user-attachments/assets/85db109e-f906-4d36-ae57-00b3621e7a73" />
+
+3. 点击 **Install service** 可将程序应用注册为系统服务与卸载脚本。
 
 要在原始 GUI 或源文件消失后完全卸载服务,请在服务安装路径中以管理员身份运行 `Uninstall-MechrevoBatteryManager.cmd` 。# MechrevoBatteryManager
 
@@ -105,3 +107,25 @@ Usage:
 5. Click **Install service** to register the program as a system service along with the uninstall script.
 
 To completely uninstall the service after the original GUI or source files disappear, run `Uninstall-MechrevoBatteryManager.cmd` as an administrator in the service installation path. #MechrevoBatteryManager
+
+## GitHub source build / GitHub 源码构建
+
+The repository contains the complete source tree and does not require .NET 8.0. It targets **.NET Framework 4.8**, uses x64 builds, and can be built on Windows with Visual Studio Build Tools or the .NET Framework MSBuild installation.
+
+仓库包含完整源码，不依赖 .NET 8.0。项目目标框架为 **.NET Framework 4.8**，使用 x64 架构，可通过 Visual Studio Build Tools 或系统中的 .NET Framework MSBuild 在 Windows 上构建。
+
+From the repository root:
+
+```powershell
+.\build.ps1 -Configuration Release
+```
+
+构建完成后，GUI、服务、核心 DLL 和卸载脚本会复制到：
+
+```text
+MechrevoBatteryManager\dist\
+```
+
+The GitHub Actions workflow in `.github/workflows/build.yml` performs the same Release build on `windows-latest`.
+
+`.github/workflows/build.yml` 中的 GitHub Actions 工作流会在 `windows-latest` 上执行相同的 Release 构建。
