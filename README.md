@@ -7,9 +7,16 @@ Make sure to read the documentation carefully before use to avoid damaging the m
 # MechrevoBatteryManager
 
 此应用是根据C#开发，用于给机械革命系列笔记本以及同方模具如XMG系列笔记本，借助官方控制台操作将官方充电限制功能实现的程序
+
 `注意：此应用也许不能在所有型号上运行，请自行鉴别`
+
 This app is developed in C# and is designed for the Mechrevo series laptops and Tongfang molds like the XMG series laptops, using the official console to implement the official charging limit feature. 
-`Note: This app might not work on all models, please check for yourself`
+
+`Warn: This app might not work on all models, please check for yourself`
+
+
+- Tips：安装完服务后你就可以直接删掉本文件了，服务会在开机时自动启动，运行完后自动结束，若已有写入则直接结束，办到省心省力，不想用了直接去`C:\Program Files\OEM\BatteryManager`路径删使用`Uninstall-MechrevoBatteryManager.cmd`进行彻底卸载，仅留下log文件夹可手动删除。但我目前并不知道如何关闭这个充电保护，也许你可以尝试将上下限都改为0，最还原的方法是拿另一个TypeC充电器进行一次DP充电或拿另一个不同的电源适配器接入，就会变为最开始的样子（切记卸载掉服务后这样，否则下一次开机会被重置）
+- Tips: After installing the service, you can just delete this file. The service will start automatically at boot, finish running on its own, and if there’s already data written, it will end immediately. It’s hassle-free. If you don’t want it anymore, just go to `C:Program FilesOEMBatteryManager` and use `Uninstall-MechrevoBatteryManager.cmd` to completely uninstall it. Only the log folder will be left, which you can delete manually. But I don’t currently know how to turn off this charging protection. Maybe you can try setting both the upper and lower limits to 0. The most reliable way to reset it is to use another Type-C charger for a DP charge or plug in a different power adapter, and it will go back to the original state (just make sure to uninstall the service first, otherwise it will reset the next time you turn it on).
 
 
 
@@ -67,7 +74,7 @@ C:\Program Files\OEM\BatteryManager\log\service.log
 
 **（虽然有自动检索，但仍可能需要手动配置DLL文件路径）**
 
-1. 点击 **Read EC**，确认 `0x07B9/0x07D0` 读数正常。
+1. 点击 **Read EC**，确认 `0x07B9/0x07D0` 读数正常，若无法读数则代表你可能无法使用。
 2. 设置阈值，应用并保存。(保存后你应该可以看到自己的电池图标变为了全智能充电模式)
 <img width="351" height="159" alt="QQ_1789151967778" src="https://github.com/user-attachments/assets/0400b41f-1d15-424d-8081-ac5323e43e28" />
 
@@ -110,7 +117,7 @@ Safety behavior:
 
 **Usage:**
 
-1. Enter the path`...\MechrevoBatteryManager\dist`, Run `MechrevoBatteryManager.exe` as an administrator.
+1. Enter the path`...\MechrevoBatteryManager\dist`, Run `MechrevoBatteryManager.exe` as an administrator. If you can't get a reading, it probably means you can't use it.
   <img width="992" height="573" alt="99950e73b9dd6c319c684db7fdab2495" src="https://github.com/user-attachments/assets/32c787c6-6ecd-40c0-8cdc-8c411b6087c9" />
 
 
