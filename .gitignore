@@ -5,6 +5,6 @@
 *.suo
 *.log
 config.json
-MechrevoBatteryManager/MechrevoBatteryManager/dist/*.exe
-MechrevoBatteryManager/MechrevoBatteryManager/dist/*.dll
-MechrevoBatteryManager/MechrevoBatteryManager/dist/*.pdb
+# Build and release artifacts are intentionally excluded from source commits.
+**/dist/
+release/

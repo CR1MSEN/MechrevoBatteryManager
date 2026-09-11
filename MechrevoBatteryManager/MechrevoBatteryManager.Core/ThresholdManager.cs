@@ -25,6 +25,8 @@ namespace MechrevoBatteryManager
             using (var ec = new EcClient(config.OemDllPath))
             {
                 var result = new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress) };
+                if (result.BeforeUpper == 0 && result.BeforeLower == 0) return result;
+                if (config.UpperLimit == 0 && config.LowerLimit == 0) return result;
                 if (result.BeforeUpper != config.UpperLimit)
                 {
                     ec.Write(UpperAddress, (byte)config.UpperLimit);

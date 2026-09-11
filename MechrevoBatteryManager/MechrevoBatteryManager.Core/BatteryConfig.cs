@@ -11,6 +11,7 @@ namespace MechrevoBatteryManager
         public int LowerLimit { get; set; }
         public int StartupDelaySeconds { get; set; }
         public string OemDllPath { get; set; }
+        public bool DriverSearchCompleted { get; set; }
 
         public BatteryConfig()
         {

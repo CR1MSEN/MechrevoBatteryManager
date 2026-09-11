@@ -22,6 +22,7 @@ namespace MechrevoBatteryManager.ServiceHost
             if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
             if (stop.WaitOne(TimeSpan.FromSeconds(cfg.StartupDelaySeconds))) return;
             ApplyOnce();
+            new Thread(new ThreadStart(delegate { Stop(); })) { IsBackground = true }.Start();
         }
         internal static void ApplyOnce()
         {
