@@ -16,7 +16,7 @@ namespace MechrevoBatteryManager
         public BatteryConfig()
         {
             UpperLimit = 80;
-            LowerLimit = 60;
+            LowerLimit = 0;
             StartupDelaySeconds = 30;
             OemDllPath = @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\ACPIDriverDll.dll";
         }
@@ -42,7 +42,7 @@ namespace MechrevoBatteryManager
         }
         public void Validate()
         {
-            if (LowerLimit < 0 || UpperLimit > 100 || LowerLimit >= UpperLimit) throw new InvalidOperationException("Required: 0 <= lower < upper <= 100.");
+            if (LowerLimit < 0 || UpperLimit < 0 || UpperLimit > 100 || (UpperLimit != 0 && LowerLimit >= UpperLimit)) throw new InvalidOperationException("Required: 0 <= lower < upper <= 100, or both values 0 to disable.");
             if (StartupDelaySeconds < 0 || StartupDelaySeconds > 300) throw new InvalidOperationException("Startup delay must be between 0 and 300 seconds.");
             if (string.IsNullOrWhiteSpace(OemDllPath)) throw new InvalidOperationException("OEM DLL path is required.");
         }

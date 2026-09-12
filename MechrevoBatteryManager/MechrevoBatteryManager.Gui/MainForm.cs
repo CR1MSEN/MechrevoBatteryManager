@@ -13,7 +13,7 @@ namespace MechrevoBatteryManager.Gui
         private const string ServiceInstallDirectory = @"C:\Program Files\OEM\BatteryManager";
         private const string Series40Console = @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\GCUService.exe";
         private const string Series50Console = @"C:\Program Files\OEM\机械革命控制中心\AiStoneService\MyControlCenter\GCUService.exe";
-        private readonly NumericUpDown upper = new NumericUpDown { Minimum = 1, Maximum = 100, Width = 90 };
+        private readonly NumericUpDown upper = new NumericUpDown { Minimum = 0, Maximum = 100, Width = 90 };
         private readonly NumericUpDown lower = new NumericUpDown { Minimum = 0, Maximum = 99, Width = 90 };
         private readonly NumericUpDown delay = new NumericUpDown { Minimum = 0, Maximum = 300, Width = 90 };
         private readonly CheckBox enabled = new CheckBox { Text = "Apply once after Windows starts", AutoSize = true };
@@ -35,7 +35,7 @@ namespace MechrevoBatteryManager.Gui
             var languageBar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 6, 18, 0) }; languageBar.Controls.Add(language); languageBar.Controls.Add(new Label { Text = "语言 / Language", AutoSize = true, Padding = new Padding(0, 5, 6, 0) });
             panel.Controls.Add(enabled, 1, 4);
             var actions = new FlowLayoutPanel { AutoSize = true };
-            actions.Controls.Add(Button("读取 EC", delegate { ReadEc(); })); actions.Controls.Add(Button("立即应用", delegate { ApplyNow(); })); actions.Controls.Add(Button("保存", delegate { Save(); })); actions.Controls.Add(Button("安装服务", delegate { InstallService(); })); actions.Controls.Add(Button("卸载服务", delegate { RemoveService(); }));
+            actions.Controls.Add(Button("读取 EC", delegate { ReadEc(); })); actions.Controls.Add(Button("立即应用", delegate { ApplyNow(); })); actions.Controls.Add(Button("保存", delegate { Save(); })); actions.Controls.Add(Button("恢复默认", delegate { RestoreDefaults(); })); actions.Controls.Add(Button("安装服务", delegate { InstallService(); })); actions.Controls.Add(Button("卸载服务", delegate { RemoveService(); }));
             panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); Controls.Add(languageBar); ApplyLanguage(); LoadConfig(); if (!Current().DriverSearchCompleted) DetectInstalledConsole();
         }
         private Label Add(TableLayoutPanel p, string name, Control c) { var label = new Label { Text = name, AutoSize = true, Anchor = AnchorStyles.Left }; p.Controls.Add(label, 0, nextRow); p.Controls.Add(c, 1, nextRow); nextRow++; return label; }
@@ -73,6 +73,7 @@ namespace MechrevoBatteryManager.Gui
         private void ReadEc() { Guard(delegate { var r = ThresholdManager.Read(dllPath.Text); status.Text = English ? string.Format("EC upper={0}, lower={1}, 0x0742={2}. Values were read through the current model's ACPIDriverDll.", r.BeforeUpper, r.BeforeLower, r.ChargeLimitGate) : string.Format("EC 上限={0}，下限={1}，0x0742={2}。已通过当前机型的 ACPIDriverDll 完成读取。", r.BeforeUpper, r.BeforeLower, r.ChargeLimitGate); }); }
         private void ApplyNow() { Guard(delegate { var c = Current(); c.Validate(); if (MessageBox.Show(this, English ? string.Format("Write upper {0}% and lower {1}% to EC?", c.UpperLimit, c.LowerLimit) : string.Format("将上限 {0}%、下限 {1}% 写入 EC？", c.UpperLimit, c.LowerLimit), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return; var r = ThresholdManager.Apply(c); status.Text = English ? string.Format("Verified: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower) : string.Format("已验证：上限={0}，下限={1}。", r.AfterUpper, r.AfterLower); }); }
         private void Save() { Guard(delegate { Current().Save(); status.Text = English ? "Configuration saved." : "配置已保存。"; }); }
+        private void RestoreDefaults() { Guard(delegate { var r = ThresholdManager.Reset(dllPath.Text); upper.Value = 0; lower.Value = 0; Current().Save(); status.Text = English ? string.Format("Defaults restored in EC: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower) : string.Format("已将 EC 恢复默认：上限={0}，下限={1}。", r.AfterUpper, r.AfterLower); }); }
         private string ServiceSourceExe() { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MechrevoBatteryManager.Service.payload"); }
         private string ServiceExe() { return Path.Combine(ServiceInstallDirectory, "MechrevoBatteryManager.Service.exe"); }
         private string CoreSourceDll() { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MechrevoBatteryManager.Core.dll"); }

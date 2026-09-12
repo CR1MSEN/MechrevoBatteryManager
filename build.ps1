@@ -17,7 +17,7 @@ Copy-Item (Join-Path $projectRoot 'MechrevoBatteryManager.Service\Uninstall-Mech
 Write-Host "Build complete: $dist"
 if ($Package) {
   $release = Join-Path $repo 'release'; New-Item -ItemType Directory -Path $release -Force | Out-Null
-  $archive = Join-Path $release ("MechrevoBatteryManager-v1.2.0-win-x64.zip")
+  $archive = Join-Path $release ("MechrevoBatteryManager-v1.4.0-win-x64.zip")
   if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
   $staging = Join-Path $release 'package'; if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }; New-Item -ItemType Directory -Path $staging | Out-Null
   Copy-Item -LiteralPath $dist -Destination (Join-Path $staging 'dist') -Recurse
