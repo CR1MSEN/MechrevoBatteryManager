@@ -1,3 +1,7 @@
+# 因为机械革命系列充电策略未做好，本软件尽管开启了智能充电依旧可能涓流充电至100，因此接下来除了机型适配可能不会再更新逻辑功能
+
+Because the charging strategy for the Mechanical Revolution series wasn't properly set up, even though this software has smart charging enabled, it might still trickle charge to 100. So apart from model compatibility, there probably won't be any more updates to the logic features.
+
 # 使用前一定要仔细阅读文档内容，避免造成机器损坏！
 
 Make sure to read the documentation carefully before use to avoid damaging the machine!
