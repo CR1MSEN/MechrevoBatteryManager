@@ -1,6 +1,6 @@
-# 因为机械革命系列充电策略未做好，本软件尽管开启了智能充电依旧可能涓流充电至100，因此接下来除了机型适配可能不会再更新逻辑功能
+# 因为机械革命系列充电策略未做好，40系等老款在本软件开启了智能充电依旧可能涓流充电至100
 
-Because the charging strategy for the Mechanical Revolution series wasn't properly set up, even though this software has smart charging enabled, it might still trickle charge to 100. So apart from model compatibility, there probably won't be any more updates to the logic features.
+Because the charging strategy for the Mechrevo series wasn't properly set up, Even with smart charging enabled in this software, older models like the 40 series might still trickle charge up to 100.
 
 # 使用前一定要仔细阅读文档内容，避免造成机器损坏！
 
