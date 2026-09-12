@@ -22,10 +22,9 @@ namespace MechrevoBatteryManager
             }
         }
 
-        public static ThresholdResult Apply(BatteryConfig config, bool skipLower = false)
+        public static ThresholdResult Apply(BatteryConfig config)
         {
             config.Validate();
-            skipLower = skipLower || (config.OemDllPath != null && config.OemDllPath.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0);
             using (var ec = new EcClient(config.OemDllPath))
             {
                 var result = new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress) };
@@ -40,7 +39,7 @@ namespace MechrevoBatteryManager
                 {
                     // A configured lower limit of 0 means "do not write" only when EC is already 0.
                     // If EC contains a previous non-zero limit, write 0 to clear it.
-                    if (!skipLower && result.BeforeLower != 0 && result.BeforeLower != config.LowerLimit)
+                    if (result.BeforeLower != 0 && result.BeforeLower != config.LowerLimit)
                     {
                         ec.Write(LowerAddress, (byte)config.LowerLimit);
                         if (ec.Read(LowerAddress) != config.LowerLimit) throw new InvalidOperationException("Lower threshold write verification failed.");
@@ -58,19 +57,16 @@ namespace MechrevoBatteryManager
             }
         }
 
-        public static ThresholdResult Reset(string dllPath, bool skipLower = false)
+        public static ThresholdResult Reset(string dllPath)
         {
             using (var ec = new EcClient(dllPath))
             {
                 var result = new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress) };
                 ec.Write(UpperAddress, 0);
                 if (ec.Read(UpperAddress) != 0) throw new InvalidOperationException("Upper threshold reset verification failed.");
-                if (!skipLower)
-                {
-                    ec.Write(LowerAddress, 0);
-                    if (ec.Read(LowerAddress) != 0) throw new InvalidOperationException("Lower threshold reset verification failed.");
-                }
-                result.AfterUpper = 0; result.AfterLower = ec.Read(LowerAddress); result.Changed = result.BeforeUpper != 0 || (!skipLower && result.BeforeLower != 0);
+                ec.Write(LowerAddress, 0);
+                if (ec.Read(LowerAddress) != 0) throw new InvalidOperationException("Lower threshold reset verification failed.");
+                result.AfterUpper = 0; result.AfterLower = 0; result.Changed = result.BeforeUpper != 0 || result.BeforeLower != 0;
                 return result;
             }
         }
