@@ -6,8 +6,6 @@ namespace MechrevoBatteryManager
     {
         public byte BeforeUpper, BeforeLower, AfterUpper, AfterLower;
         public byte ChargeLimitGate;
-        public byte State07C3, State0770, StoredLimit;
-        public bool LimitEnabled;
         public bool Changed;
     }
 
@@ -20,9 +18,7 @@ namespace MechrevoBatteryManager
         {
             using (var ec = new EcClient(dllPath))
             {
-                var c3 = ec.Read(0x07C3); var w70 = ec.Read(0x0770); var stored = (byte)(ec.Read(0x087F) & 0x7F);
-                var stateEnabled = c3 == 4 || c3 == 5 || w70 == 4 || w70 == 5;
-                return new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress), ChargeLimitGate = ec.Read(0x0742), State07C3 = c3, State0770 = w70, StoredLimit = stored, LimitEnabled = stateEnabled || (stored >= 1 && stored <= 100) };
+                return new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress), ChargeLimitGate = ec.Read(0x0742) };
             }
         }
 
