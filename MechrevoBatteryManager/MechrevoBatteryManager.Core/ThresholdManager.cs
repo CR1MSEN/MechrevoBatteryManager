@@ -5,6 +5,7 @@ namespace MechrevoBatteryManager
     public sealed class ThresholdResult
     {
         public byte BeforeUpper, BeforeLower, AfterUpper, AfterLower;
+        public byte ChargeLimitGate;
         public bool Changed;
     }
 
@@ -16,7 +17,7 @@ namespace MechrevoBatteryManager
         public static ThresholdResult Read(string dllPath)
         {
             using (var ec = new EcClient(dllPath))
-                return new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress) };
+                return new ThresholdResult { BeforeUpper = ec.Read(UpperAddress), BeforeLower = ec.Read(LowerAddress), ChargeLimitGate = ec.Read(0x0742) };
         }
 
         public static ThresholdResult Apply(BatteryConfig config)
