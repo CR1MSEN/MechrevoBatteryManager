@@ -23,6 +23,7 @@ namespace MechrevoBatteryManager.Gui
         private Label upperLabel, lowerLabel, delayLabel, dllLabel;
         private int nextRow;
         private bool English { get { return language.SelectedIndex == 1; } }
+        private bool IsSeries50 { get; set; }
 
         public MainForm()
         {
@@ -36,11 +37,11 @@ namespace MechrevoBatteryManager.Gui
             panel.Controls.Add(enabled, 1, 4);
             var actions = new FlowLayoutPanel { AutoSize = true };
             actions.Controls.Add(Button("读取 EC", delegate { ReadEc(); })); actions.Controls.Add(Button("立即应用", delegate { ApplyNow(); })); actions.Controls.Add(Button("保存", delegate { Save(); })); actions.Controls.Add(Button("恢复默认", delegate { RestoreDefaults(); })); actions.Controls.Add(Button("安装服务", delegate { InstallService(); })); actions.Controls.Add(Button("卸载服务", delegate { RemoveService(); }));
-            panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); Controls.Add(languageBar); ApplyLanguage(); LoadConfig(); if (!Current().DriverSearchCompleted) DetectInstalledConsole();
+            panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); Controls.Add(languageBar); ApplyLanguage(); LoadConfig(); IsSeries50 = dllPath.Text.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0; lower.Value = 0; lower.Enabled = false; if (!Current().DriverSearchCompleted) DetectInstalledConsole();
         }
         private Label Add(TableLayoutPanel p, string name, Control c) { var label = new Label { Text = name, AutoSize = true, Anchor = AnchorStyles.Left }; p.Controls.Add(label, 0, nextRow); p.Controls.Add(c, 1, nextRow); nextRow++; return label; }
         private static Button Button(string text, EventHandler click) { var b = new Button { Text = text, AutoSize = true }; b.Click += click; return b; }
-        private BatteryConfig Current() { return new BatteryConfig { UpperLimit = (int)upper.Value, LowerLimit = (int)lower.Value, StartupDelaySeconds = (int)delay.Value, Enabled = enabled.Checked, OemDllPath = dllPath.Text }; }
+        private BatteryConfig Current() { return new BatteryConfig { UpperLimit = (int)upper.Value, LowerLimit = IsSeries50 ? 0 : (int)lower.Value, StartupDelaySeconds = (int)delay.Value, Enabled = enabled.Checked, OemDllPath = dllPath.Text }; }
         private void LoadConfig() { var c = BatteryConfig.Load(); upper.Value = c.UpperLimit; lower.Value = c.LowerLimit; delay.Value = c.StartupDelaySeconds; enabled.Checked = c.Enabled; dllPath.Text = c.OemDllPath; }
         private void DetectInstalledConsole()
         {
@@ -55,6 +56,8 @@ namespace MechrevoBatteryManager.Gui
             }
 
             var series = detectedPath == Series40Console ? "40" : (detectedPath == Series50Console ? "50" : "OEM");
+            IsSeries50 = detectedPath == Series50Console;
+            lower.Value = 0; lower.Enabled = false;
             var detectedDll = detectedPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? detectedPath : Path.Combine(Path.GetDirectoryName(detectedPath), "ACPIDriverDll.dll");
             if (!File.Exists(detectedDll))
             {
@@ -70,10 +73,10 @@ namespace MechrevoBatteryManager.Gui
         private void ApplyLanguage() { bool en = English; Text = en ? "MechrevoBatteryManager" : "机械革命电池管理器"; upperLabel.Text = en ? "Charge limit (%)" : "充电截止阈值 (%)"; lowerLabel.Text = en ? "Recharge at (%)" : "复充启动阈值 (%)"; delayLabel.Text = en ? "Startup delay (s)" : "启动延迟 (秒)"; dllLabel.Text = en ? "OEM driver DLL" : "OEM 驱动 DLL"; enabled.Text = en ? "Apply once after Windows starts" : "开机后应用一次"; }
         private void SearchDriver() { Guard(delegate { DetectInstalledConsole(); }); }
         private void Guard(Action action) { try { action(); } catch (Exception ex) { status.Text = (English ? "Error: " : "错误：") + ex.Message; MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error); } }
-        private void ReadEc() { Guard(delegate { var r = ThresholdManager.Read(dllPath.Text); status.Text = English ? string.Format("EC upper={0}, lower={1}, 0x0742={2}. Values were read through the current model's ACPIDriverDll.", r.BeforeUpper, r.BeforeLower, r.ChargeLimitGate) : string.Format("EC 上限={0}，下限={1}，0x0742={2}。已通过当前机型的 ACPIDriverDll 完成读取。", r.BeforeUpper, r.BeforeLower, r.ChargeLimitGate); }); }
-        private void ApplyNow() { Guard(delegate { var c = Current(); c.Validate(); if (MessageBox.Show(this, English ? string.Format("Write upper {0}% and lower {1}% to EC?", c.UpperLimit, c.LowerLimit) : string.Format("将上限 {0}%、下限 {1}% 写入 EC？", c.UpperLimit, c.LowerLimit), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return; var r = ThresholdManager.Apply(c); status.Text = English ? string.Format("Verified: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower) : string.Format("已验证：上限={0}，下限={1}。", r.AfterUpper, r.AfterLower); }); }
+        private void ReadEc() { Guard(delegate { var r = ThresholdManager.Read(dllPath.Text); status.Text = English ? string.Format("Current charge limit: {0}%.", r.BeforeUpper) : string.Format("当前充电上限为：{0}%", r.BeforeUpper); }); }
+        private void ApplyNow() { Guard(delegate { var c = Current(); c.Validate(); if (MessageBox.Show(this, English ? string.Format("Write upper {0}% and lower {1}% to EC?", c.UpperLimit, c.LowerLimit) : string.Format("将上限 {0}%、下限 {1}% 写入 EC？", c.UpperLimit, c.LowerLimit), Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return; var r = ThresholdManager.Apply(c, IsSeries50); status.Text = English ? string.Format("Verified: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower) : string.Format("已验证：上限={0}，下限={1}。", r.AfterUpper, r.AfterLower); }); }
         private void Save() { Guard(delegate { Current().Save(); status.Text = English ? "Configuration saved." : "配置已保存。"; }); }
-        private void RestoreDefaults() { Guard(delegate { var r = ThresholdManager.Reset(dllPath.Text); upper.Value = 0; lower.Value = 0; Current().Save(); status.Text = English ? string.Format("Defaults restored in EC: upper={0}, lower={1}.", r.AfterUpper, r.AfterLower) : string.Format("已将 EC 恢复默认：上限={0}，下限={1}。", r.AfterUpper, r.AfterLower); }); }
+        private void RestoreDefaults() { Guard(delegate { var r = ThresholdManager.Reset(dllPath.Text, IsSeries50); upper.Value = 0; lower.Value = 0; Current().Save(); status.Text = English ? string.Format("Defaults restored in EC: upper={0}, lower={1}{2}.", r.AfterUpper, r.AfterLower, IsSeries50 ? " (not written on 50 series)" : "") : string.Format("已将 EC 恢复默认：上限={0}，下限={1}{2}。", r.AfterUpper, r.AfterLower, IsSeries50 ? "（50系未写入下限）" : ""); }); }
         private string ServiceSourceExe() { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MechrevoBatteryManager.Service.payload"); }
         private string ServiceExe() { return Path.Combine(ServiceInstallDirectory, "MechrevoBatteryManager.Service.exe"); }
         private string CoreSourceDll() { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MechrevoBatteryManager.Core.dll"); }
