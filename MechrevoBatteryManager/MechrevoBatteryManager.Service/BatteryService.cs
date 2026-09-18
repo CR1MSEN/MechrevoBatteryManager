@@ -36,7 +36,14 @@ namespace MechrevoBatteryManager.ServiceHost
             {
                 var cfg = LoadServiceConfig();
                 if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
-                var r = ThresholdManager.Apply(cfg);
+                string defaultsPath;
+                using (var key = Registry.LocalMachine.OpenSubKey(@"Software\MechrevoBatteryManager"))
+                {
+                    var profile = key == null ? null : key.GetValue("UserProfile") as string;
+                    if (string.IsNullOrWhiteSpace(profile)) throw new InvalidOperationException("Service user profile is missing.");
+                    defaultsPath = Path.Combine(profile, "MechrevoBatteryManager", "Default.json");
+                }
+                var r = ThresholdManager.Apply(cfg, false, defaultsPath);
                 Log(string.Format("Applied upper={0}, lower={1}; before={2}/{3}, after={4}/{5}, changed={6}", cfg.UpperLimit, cfg.LowerLimit, r.BeforeUpper, r.BeforeLower, r.AfterUpper, r.AfterLower, r.Changed));
             }
             catch (Exception ex) { Log("ERROR: " + ex); }
@@ -46,7 +53,7 @@ namespace MechrevoBatteryManager.ServiceHost
             using (var key = Registry.LocalMachine.OpenSubKey(@"Software\MechrevoBatteryManager"))
             {
                 var profile = key == null ? null : key.GetValue("UserProfile") as string;
-                return string.IsNullOrWhiteSpace(profile) ? BatteryConfig.Load() : BatteryConfig.LoadFromDirectory(profile);
+                return string.IsNullOrWhiteSpace(profile) ? BatteryConfig.Load() : BatteryConfig.LoadFromDirectory(Path.Combine(profile, "MechrevoBatteryManager"));
             }
         }
         private static void Log(string message)

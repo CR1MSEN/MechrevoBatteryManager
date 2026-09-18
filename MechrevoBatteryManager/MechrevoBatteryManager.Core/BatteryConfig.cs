@@ -17,7 +17,7 @@ namespace MechrevoBatteryManager
         {
             UpperLimit = 80;
             LowerLimit = 0;
-            StartupDelaySeconds = 30;
+            StartupDelaySeconds = 10;
             OemDllPath = @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\ACPIDriverDll.dll";
         }
 
