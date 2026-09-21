@@ -1,8 +1,8 @@
 ## v1.5：首次备份与恢复 / First-run backup and restore
 
 首次运行 v1.5 时，程序将成功读取的 EC 原始上限和下限保存至
-`%USERPROFILE%\MechrevoBatteryManager\Default.json`（Crimson 用户为
-`C:\Users\Crimson\MechrevoBatteryManager\Default.json`），已有备份不会被覆盖。
+`%USERPROFILE%\MechrevoBatteryManager\Default.json`（例如 C 用户为
+`C:\Users\C\MechrevoBatteryManager\Default.json`），已有备份不会被覆盖。
 备份失败会阻止应用配置和安装服务；文件缺失或损坏时不能恢复。
 这是首次读取时的状态，不一定是出厂值：旧版本已经改过 EC 时，备份会记录修改后的值。
 “恢复默认”会写回备份值并验证，随后保存 0/0 停用配置、关闭开机应用；
