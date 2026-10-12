@@ -12,6 +12,8 @@ namespace MechrevoBatteryManager
         public int StartupDelaySeconds { get; set; }
         public string OemDllPath { get; set; }
         public bool DriverSearchCompleted { get; set; }
+        public bool TurnOffChargingLight { get; set; }
+        public bool WhiteChargingLightAtLimit { get; set; }
 
         public BatteryConfig()
         {
@@ -33,7 +35,9 @@ namespace MechrevoBatteryManager
             var path = Path.Combine(directory, "config.json");
             if (!File.Exists(path) && directory == DirectoryPath) path = LegacyFilePath;
             if (!File.Exists(path)) return new BatteryConfig();
-            return new JavaScriptSerializer().Deserialize<BatteryConfig>(File.ReadAllText(path)) ?? new BatteryConfig();
+            var config = new JavaScriptSerializer().Deserialize<BatteryConfig>(File.ReadAllText(path)) ?? new BatteryConfig();
+            config.LowerLimit = 0; // Migrate old configs: writing lower breaks the upper limit on these machines.
+            return config;
         }
         public void Save()
         {
@@ -42,7 +46,8 @@ namespace MechrevoBatteryManager
         }
         public void Validate()
         {
-            if (LowerLimit < 0 || UpperLimit < 0 || UpperLimit > 100 || (UpperLimit != 0 && LowerLimit >= UpperLimit)) throw new InvalidOperationException("Required: 0 <= lower < upper <= 100, or both values 0 to disable.");
+            if (LowerLimit != 0 || UpperLimit < 0 || UpperLimit > 100) throw new InvalidOperationException("Required: lower = 0 (never written), 0 <= upper <= 100; upper = 0 disables application.");
+            if (TurnOffChargingLight || WhiteChargingLightAtLimit) throw new InvalidOperationException("充电灯寄存器及关闭/白色控制值尚未确认，不能启用。Charging LED control is not yet verified.");
             if (StartupDelaySeconds < 0 || StartupDelaySeconds > 300) throw new InvalidOperationException("Startup delay must be between 0 and 300 seconds.");
             if (string.IsNullOrWhiteSpace(OemDllPath)) throw new InvalidOperationException("OEM DLL path is required.");
         }

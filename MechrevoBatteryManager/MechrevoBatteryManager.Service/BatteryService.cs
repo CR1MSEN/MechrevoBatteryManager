@@ -21,10 +21,12 @@ namespace MechrevoBatteryManager.ServiceHost
             try
             {
                 var cfg = LoadServiceConfig();
+                cfg.Validate();
                 if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
                 if (stop.WaitOne(TimeSpan.FromSeconds(cfg.StartupDelaySeconds))) return;
                 ApplyOnce();
             }
+            catch (Exception ex) { Log("ERROR: " + ex); }
             finally
             {
                 new Thread(new ThreadStart(delegate { try { Log("Service stopping automatically."); Stop(); } catch { } })) { IsBackground = true }.Start();
@@ -35,6 +37,7 @@ namespace MechrevoBatteryManager.ServiceHost
             try
             {
                 var cfg = LoadServiceConfig();
+                cfg.Validate();
                 if (!cfg.Enabled) { Log("Disabled; no EC write performed."); return; }
                 string defaultsPath;
                 using (var key = Registry.LocalMachine.OpenSubKey(@"Software\MechrevoBatteryManager"))
@@ -44,7 +47,7 @@ namespace MechrevoBatteryManager.ServiceHost
                     defaultsPath = Path.Combine(profile, "MechrevoBatteryManager", "Default.json");
                 }
                 var r = ThresholdManager.Apply(cfg, false, defaultsPath);
-                Log(string.Format("Applied upper={0}, lower={1}; before={2}/{3}, after={4}/{5}, changed={6}", cfg.UpperLimit, cfg.LowerLimit, r.BeforeUpper, r.BeforeLower, r.AfterUpper, r.AfterLower, r.Changed));
+                Log(string.Format("Applied upper={0}, lower={1}; before={2}/{3}, after={4}/{5}, changed={6}; chargingProfile={7}; lower register never written", cfg.UpperLimit, cfg.LowerLimit, r.BeforeUpper, r.BeforeLower, r.AfterUpper, r.AfterLower, r.Changed, r.AfterProfile));
             }
             catch (Exception ex) { Log("ERROR: " + ex); }
         }

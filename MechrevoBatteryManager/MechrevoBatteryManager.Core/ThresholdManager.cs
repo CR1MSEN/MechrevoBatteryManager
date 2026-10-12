@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Web.Script.Serialization;
 
 namespace MechrevoBatteryManager
@@ -8,21 +10,30 @@ namespace MechrevoBatteryManager
     {
         public int? UpperRaw { get; set; }
         public int? LowerRaw { get; set; }
+        public int? ProfileRaw { get; set; }
         public string CapturedAtUtc { get; set; }
         public static string FilePath { get { return Path.Combine(BatteryConfig.DirectoryPath, "Default.json"); } }
         public static EcDefaults Load(string path)
         {
             var value = new JavaScriptSerializer().Deserialize<EcDefaults>(File.ReadAllText(path));
-            if (value == null || !value.UpperRaw.HasValue || !value.LowerRaw.HasValue ||
-                value.UpperRaw < 0 || value.UpperRaw > 255 || value.LowerRaw < 0 || value.LowerRaw > 255)
+            if (value == null || !ValidByte(value.UpperRaw) || !ValidByte(value.LowerRaw) ||
+                (value.ProfileRaw.HasValue && !ValidByte(value.ProfileRaw)))
                 throw new InvalidDataException("Default.json is invalid; EC restore was cancelled.");
+            // v1.5 backups stay untouched. The new profile snapshot is saved separately.
+            if (!value.ProfileRaw.HasValue && File.Exists(path + ".profile.json"))
+            {
+                var profile = new JavaScriptSerializer().Deserialize<EcDefaults>(File.ReadAllText(path + ".profile.json"));
+                if (profile == null || !ValidByte(profile.ProfileRaw)) throw new InvalidDataException("Profile backup is invalid.");
+                value.ProfileRaw = profile.ProfileRaw;
+            }
             return value;
         }
+        private static bool ValidByte(int? value) { return value.HasValue && value.Value >= 0 && value.Value <= 255; }
     }
     public sealed class ThresholdResult
     {
         public byte BeforeUpper, BeforeLower, AfterUpper, AfterLower;
-        public byte ChargeLimitGate;
+        public byte BeforeProfile, AfterProfile;
         public bool Changed;
     }
 
@@ -30,89 +41,167 @@ namespace MechrevoBatteryManager
     {
         public const uint UpperAddress = 0x07B9;
         public const uint LowerAddress = 0x07D0;
-        private static byte EffectiveUpper(byte raw) { return (byte)(raw & 0x7F); }
+        public const uint ProfileAddress = 0x07A6;
+        public const byte ProfileMask = 0x30;
+        // User-supplied PowerLight_LEDPWM address, not a verified color control.
+        public const uint PowerLightPwmAddress = 0x07F8;
+        private static readonly object Sync = new object();
 
         public static void EnsureDefaults(string dllPath, string path = null)
         {
-            path = path ?? EcDefaults.FilePath;
-            if (File.Exists(path)) { EcDefaults.Load(path); return; }
-            EcDefaults snapshot;
-            using (var ec = new EcClient(dllPath))
-                snapshot = new EcDefaults { UpperRaw = ec.Read(UpperAddress), LowerRaw = ec.Read(LowerAddress), CapturedAtUtc = DateTime.UtcNow.ToString("o") };
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            // Publish only a complete snapshot, and never replace an existing backup.
+            lock (Sync) using (var operation = new EcOperationLock())
+            {
+                path = path ?? EcDefaults.FilePath;
+                if (File.Exists(path))
+                {
+                    var existing = EcDefaults.Load(path);
+                    if (!existing.ProfileRaw.HasValue)
+                    {
+                        using (var ec = new EcClient(dllPath))
+                            Publish(path + ".profile.json", new EcDefaults { ProfileRaw = ec.Read(ProfileAddress), CapturedAtUtc = DateTime.UtcNow.ToString("o") });
+                        EcDefaults.Load(path);
+                    }
+                    return;
+                }
+                using (var ec = new EcClient(dllPath))
+                    Publish(path, new EcDefaults { UpperRaw = ec.Read(UpperAddress), LowerRaw = ec.Read(LowerAddress), ProfileRaw = ec.Read(ProfileAddress), CapturedAtUtc = DateTime.UtcNow.ToString("o") });
+                EcDefaults.Load(path);
+            }
+        }
+        private static void Publish(string path, EcDefaults snapshot)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
             var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 File.WriteAllText(temp, new JavaScriptSerializer().Serialize(snapshot));
                 try { File.Move(temp, path); }
-                catch (IOException) { if (!File.Exists(path)) throw; EcDefaults.Load(path); }
+                catch (IOException) { if (!File.Exists(path)) throw; }
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
         }
-
         public static ThresholdResult Read(string dllPath)
         {
-            using (var ec = new EcClient(dllPath))
-            {
-                return new ThresholdResult { BeforeUpper = EffectiveUpper(ec.Read(UpperAddress)), BeforeLower = ec.Read(LowerAddress), ChargeLimitGate = ec.Read(0x0742) };
-            }
+            lock (Sync) using (var operation = new EcOperationLock()) using (var ec = new EcClient(dllPath)) return ReadState(ec);
         }
-
+        private static ThresholdResult ReadState(IEcAccessor ec)
+        {
+            byte upper = ec.Read(UpperAddress), lower = ec.Read(LowerAddress), profile = ec.Read(ProfileAddress);
+            return new ThresholdResult { BeforeUpper = upper, AfterUpper = upper, BeforeLower = lower, AfterLower = lower,
+                BeforeProfile = (byte)((profile & ProfileMask) >> 4), AfterProfile = (byte)((profile & ProfileMask) >> 4) };
+        }
         public static ThresholdResult Apply(BatteryConfig config, bool skipLower = false, string defaultsPath = null)
         {
             config.Validate();
-            EnsureDefaults(config.OemDllPath, defaultsPath);
-            skipLower = skipLower || (config.OemDllPath != null && config.OemDllPath.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0);
-            using (var ec = new EcClient(config.OemDllPath))
+            lock (Sync)
             {
-                var result = new ThresholdResult { BeforeUpper = EffectiveUpper(ec.Read(UpperAddress)), BeforeLower = ec.Read(LowerAddress) };
-                if (config.UpperLimit == 0 && config.LowerLimit == 0) return result;
-                if (result.BeforeUpper != config.UpperLimit)
+                // Disabled settings perform no hardware access and need no backup.
+                if (config.UpperLimit == 0) return new ThresholdResult();
+                using (var operation = new EcOperationLock())
                 {
-                    ec.Write(UpperAddress, (byte)config.UpperLimit);
-                    if (EffectiveUpper(ec.Read(UpperAddress)) != config.UpperLimit) throw new InvalidOperationException("Upper threshold write verification failed.");
-                    result.Changed = true;
+                    EnsureDefaults(config.OemDllPath, defaultsPath);
+                    using (var ec = new EcClient(config.OemDllPath)) return ApplyToEc(ec, config, true, Settle);
                 }
-                try
-                {
-                    // A configured lower limit of 0 means "do not write" only when EC is already 0.
-                    // If EC contains a previous non-zero limit, write 0 to clear it.
-                    if (!skipLower && result.BeforeLower != 0 && result.BeforeLower != config.LowerLimit)
-                    {
-                        ec.Write(LowerAddress, (byte)config.LowerLimit);
-                        if (ec.Read(LowerAddress) != config.LowerLimit) throw new InvalidOperationException("Lower threshold write verification failed.");
-                        result.Changed = true;
-                    }
-                }
-                catch
-                {
-                    if (result.BeforeUpper <= 100) ec.Write(UpperAddress, result.BeforeUpper);
-                    throw;
-                }
-                result.AfterUpper = EffectiveUpper(ec.Read(UpperAddress));
-                result.AfterLower = ec.Read(LowerAddress);
-                return result;
             }
         }
+        internal static ThresholdResult ApplyToEc(IEcAccessor ec, BatteryConfig config, bool skipLower, Action settle = null)
+        {
+            config.Validate();
+            if (config.UpperLimit == 0) return new ThresholdResult();
+            var changes = new List<Change>();
+            int profile = config.UpperLimit <= 60 ? 2 : config.UpperLimit <= 80 ? 1 : 0;
+            // Select the profile before writing the custom threshold: firmware may set a preset on mode change.
+            changes.Add(new Change(ProfileAddress, (byte)(profile << 4), ProfileMask));
+            changes.Add(new Change(UpperAddress, (byte)config.UpperLimit, 0xFF));
 
+            return Execute(ec, changes, settle);
+        }
         public static ThresholdResult Reset(string dllPath, bool skipLower = false)
         {
-            var defaults = EcDefaults.Load(EcDefaults.FilePath);
-            skipLower = skipLower || dllPath.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0;
-            using (var ec = new EcClient(dllPath))
+            lock (Sync) using (var operation = new EcOperationLock())
             {
-                var result = new ThresholdResult { BeforeUpper = EffectiveUpper(ec.Read(UpperAddress)), BeforeLower = ec.Read(LowerAddress) };
-                ec.Write(UpperAddress, (byte)defaults.UpperRaw.Value);
-                if (EffectiveUpper(ec.Read(UpperAddress)) != EffectiveUpper((byte)defaults.UpperRaw.Value)) throw new InvalidOperationException("Upper threshold restore verification failed.");
-                if (!skipLower)
+                var defaults = EcDefaults.Load(EcDefaults.FilePath);
+                using (var ec = new EcClient(dllPath)) return ResetToEc(ec, defaults, true, Settle);
+            }
+        }
+        internal static ThresholdResult ResetToEc(IEcAccessor ec, EcDefaults defaults, bool skipLower, Action settle = null)
+        {
+            var changes = new List<Change>();
+            // Restore only the charging bits; unrelated mode bits may have changed since the backup.
+            if (defaults.ProfileRaw.HasValue) changes.Add(new Change(ProfileAddress, (byte)defaults.ProfileRaw.Value, ProfileMask));
+            changes.Add(new Change(UpperAddress, (byte)defaults.UpperRaw.Value, 0xFF));
+
+            return Execute(ec, changes, settle);
+        }
+        private static void Settle() { Thread.Sleep(150); }
+        private sealed class Change
+        {
+            internal readonly uint Address;
+            internal readonly byte Value, Mask;
+            internal byte Before;
+            internal bool Attempted;
+            internal Change(uint address, byte value, byte mask) { Address = address; Value = value; Mask = mask; }
+        }
+        private static void WriteVerified(IEcAccessor ec, uint address, byte value, byte mask)
+        {
+            var current = ec.Read(address);
+            var target = (byte)((current & ~mask) | (value & mask));
+            if (current != target) ec.Write(address, target);
+            if ((ec.Read(address) & mask) != (target & mask))
+                throw new InvalidOperationException(string.Format("EC 0x{0:X4} write verification failed.", address));
+        }
+        private static ThresholdResult Execute(IEcAccessor ec, List<Change> changes, Action settle)
+        {
+            var result = ReadState(ec);
+            // Snapshot every target before any write, including raw bytes used for rollback.
+            foreach (var change in changes) change.Before = ec.Read(change.Address);
+            try
+            {
+                foreach (var change in changes)
                 {
-                    ec.Write(LowerAddress, (byte)defaults.LowerRaw.Value);
-                    if (ec.Read(LowerAddress) != defaults.LowerRaw.Value) throw new InvalidOperationException("Lower threshold restore verification failed.");
+                    // Mark before calling the driver: a failed call may already have changed hardware.
+                    change.Attempted = true;
+                    WriteVerified(ec, change.Address, change.Value, change.Mask);
+                    if (change.Address == ProfileAddress && settle != null) settle();
                 }
-                result.AfterUpper = EffectiveUpper(ec.Read(UpperAddress)); result.AfterLower = ec.Read(LowerAddress);
-                result.Changed = result.BeforeUpper != result.AfterUpper || result.BeforeLower != result.AfterLower;
+                // Check immediately and after a short settling interval; never blindly repeat writes.
+                for (int pass = 0; pass < 2; ++pass)
+                {
+                    if (pass != 0 && settle != null) settle();
+                    foreach (var change in changes)
+                        if ((ec.Read(change.Address) & change.Mask) != (change.Value & change.Mask))
+                            throw new InvalidOperationException(string.Format("EC 0x{0:X4} final verification failed; firmware or the OEM console may have overwritten the setting.", change.Address));
+                }
+                var after = ReadState(ec);
+                result.AfterUpper = after.AfterUpper; result.AfterLower = after.AfterLower; result.AfterProfile = after.AfterProfile;
+                result.Changed = result.BeforeUpper != result.AfterUpper || result.BeforeLower != result.AfterLower || result.BeforeProfile != result.AfterProfile;
                 return result;
+            }
+            catch (Exception failure)
+            {
+                var errors = new List<Exception> { failure };
+                // Profile restore can reset the preset threshold, so restore profile first, then upper. LowerAddress is never written.
+                bool started = changes.Exists(c => c.Attempted);
+                foreach (var change in changes)
+                    if (started)
+                        try
+                        {
+                            WriteVerified(ec, change.Address, change.Before, change.Mask);
+                            if (change.Address == ProfileAddress && settle != null) settle();
+                        }
+                        catch (Exception rollback) { errors.Add(rollback); }
+                if (started && settle != null)
+                    try { settle(); } catch (Exception rollback) { errors.Add(rollback); }
+                foreach (var change in changes)
+                    if (started)
+                        try
+                        {
+                            if ((ec.Read(change.Address) & change.Mask) != (change.Before & change.Mask))
+                                throw new InvalidOperationException(string.Format("EC 0x{0:X4} rollback verification failed.", change.Address));
+                        }
+                        catch (Exception rollback) { errors.Add(rollback); }
+                if (errors.Count > 1) throw new AggregateException("EC operation failed; rollback was incomplete.", errors);
+                throw new InvalidOperationException("EC operation failed; previous values restored.", failure);
             }
         }
     }

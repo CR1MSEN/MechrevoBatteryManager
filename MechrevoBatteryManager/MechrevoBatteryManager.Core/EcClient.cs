@@ -4,7 +4,12 @@ using System.Runtime.InteropServices;
 
 namespace MechrevoBatteryManager
 {
-    public sealed class EcClient : IDisposable
+    public interface IEcAccessor
+    {
+        byte Read(uint address);
+        void Write(uint address, byte value);
+    }
+    public sealed class EcClient : IDisposable, IEcAccessor
     {
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate byte ReadEcDelegate(uint address);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void WriteEcDelegate(uint address, uint value);
@@ -18,10 +23,15 @@ namespace MechrevoBatteryManager
 
         public EcClient(string dllPath)
         {
+            OemDriverInfo.Validate(dllPath);
             module = LoadLibrary(dllPath);
             if (module == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Unable to load OEM ACPIDriverDll.dll");
-            read = LoadExport<ReadEcDelegate>("ReadEC");
-            write = LoadExport<WriteEcDelegate>("WriteEC");
+            try
+            {
+                read = LoadExport<ReadEcDelegate>("ReadEC");
+                write = LoadExport<WriteEcDelegate>("WriteEC");
+            }
+            catch { Dispose(); throw; }
         }
 
         private T LoadExport<T>(string name) where T : class
@@ -31,8 +41,15 @@ namespace MechrevoBatteryManager
             return (T)(object)Marshal.GetDelegateForFunctionPointer(address, typeof(T));
         }
 
-        public byte Read(uint address) { return read(address); }
-        public void Write(uint address, byte value) { write(address, value); }
+        public byte Read(uint address) { ThrowIfDisposed(); return read(address); }
+        public void Write(uint address, byte value)
+        {
+            ThrowIfDisposed();
+            if (address != ThresholdManager.UpperAddress && address != ThresholdManager.ProfileAddress)
+                throw new InvalidOperationException("EC write address is not supported: 0x" + address.ToString("X4"));
+            write(address, value);
+        }
+        private void ThrowIfDisposed() { if (module == IntPtr.Zero) throw new ObjectDisposedException("EcClient"); }
         public void Dispose() { if (module != IntPtr.Zero) { FreeLibrary(module); module = IntPtr.Zero; } }
     }
 }

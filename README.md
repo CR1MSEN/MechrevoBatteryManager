@@ -1,3 +1,29 @@
+## v1.6.1：结合本机官方 GCU 静态检查的修订
+
+- 增加“驱动诊断”：只读取 DLL/EXE 文件，检查 x64 PE 架构、ReadEC/WriteEC 导出和版本信息，不加载官方程序、不调用 EC。诊断同时列出已找到的充电/电源灯接口与未确认项。
+- 驱动检索直接在 AiStoneService 目录中寻找兼容的 ACPIDriverDll.dll，不再要求先发现 GCUService.exe；加载 DLL 前同样校验架构和导出，拒绝错误文件。
+- GUI 与开机服务通过跨会话命名互斥锁协调 EC 操作，最多等待 10 秒，避免本软件自身的读写/备份交错。该锁不约束官方控制台或固件。
+- 档位写入后等待 150 毫秒再写准确上限，全部写入后进行即时及延迟 150 毫秒的回读。发现覆盖时尝试恢复之前的档位与上限，回滚失败明确报错。时间间隔是本软件的验证策略，并非从被保护的官方代码中还原的时序；更晚发生的覆盖无法由这次检查保证发现。
+- 保留自动阈值联动、下限零写入和一次性服务；未新增充电档位选择栏。
+- 根据检查更新充电灯提示：已发现 SetPowerLedStatus(UInt32)，但参数映射仍受代码保护，关闭/变白选项继续禁用。不使用未确认的 NVRAM/消息写入协议。
+- 发布包附带 OEM检查说明.md，区分静态确认内容和未知参数。所有自动测试采用模拟 EC；实际充电效果未做硬件写入验证。
+
+## v1.6：充电档位联动与下限零写入
+
+- **不再写入下限 `0x07D0`**：立即应用、开机服务、恢复默认及失败回滚均不写入；旧配置下限加载时归零。为兼容 v1.5，仍保留该寄存器的读取和备份。
+- 自动阈值联动：1–60% → 工作站（2），61–80% → 平衡（1），81–100% → 长效（0）。三档官方预设为 60/80/100%，区间映射是本软件用于自定义阈值的策略。只修改 `0x07A6` 的 bits[5:4]，保留其他位；先设置档位，再写 `0x07B9` 的百分比。界面无需选择充电档位，立即应用与开机服务均自动联动；旧配置的手动档位策略被忽略。自定义阈值的实际固件行为尚未验证。
+- 上限按完整字节写入及回读，不再将 bit 7 直接屏蔽。0 表示停用本软件的应用操作，不会撤销已经写入的硬件状态；撤销请用“恢复默认”。
+- 每次修改前保存完整原值，逐项回读，并在全部写入后再次验证。失败时先恢复档位位域，再恢复原上限；回滚失败会明确报错。读取/写入不是原子操作，官方控制台同时改档仍可能覆盖配置。
+- 新备份包含档位；v1.5 `Default.json` 不覆盖，首次补充的档位另存 `Default.json.profile.json`。补充值代表升级时的档位，不能重建 v1.5 首次备份时的档位。恢复默认只恢复充电档位位域和上限，不恢复下限。没有档位备份时仅恢复上限。
+- 新增“关闭充电灯”和“达到阈值后变白”两个互斥选项及配置字段，**目前禁用，尚不可实际使用**。已知 `PowerLight_LEDPWM = 2040 = 0x07F8`，但未确认 PWM 值/位域、关闭值、颜色寄存器或白色值。部分机型电源键红色表示充电，绿/蓝/白也用于性能模式，不能从亮度地址推导颜色，更不能通过切换狂暴模式实现白灯。
+- 灯光功能启用前需要对应机型的接口/寄存器映射；“达到阈值后变白”若没有固件级规则，还需要电池状态监测。当前服务仍只执行一次，不包含常驻监测。
+- 保留官方 GCU 驱动调用：`C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\ACPIDriverDll.dll` 的 `ReadEC` / `WriteEC`。没有修改官方文件、安装服务或向真实 EC 写入。
+- **回读成功只证明寄存器接受了值，不证明固件实际停止充电。** 40 系等机型原有涓流充电问题是否解决仍需实机观察；本次没有改写固件 gate/ROMID 等未知控制位。
+
+档位位域依据用户提供的信息，并与 [TUXEDO 官方源码](https://github.com/tuxedocomputers/tuxedo-keyboard/blob/master/src/uniwill_keyboard.h) 的 `uw_set_charging_profile` 实现核对。
+
+验证：`.\build.ps1 -Configuration Release`；`.\tests\run.ps1`（模拟 EC，不访问硬件）。
+
 ## v1.5：首次备份与恢复 / First-run backup and restore
 
 首次运行 v1.5 时，程序将成功读取的 EC 原始上限和下限保存至
@@ -6,7 +32,7 @@
 备份失败会阻止应用配置和安装服务；文件缺失或损坏时不能恢复。
 这是首次读取时的状态，不一定是出厂值：旧版本已经改过 EC 时，备份会记录修改后的值。
 “恢复默认”会写回备份值并验证，随后保存 0/0 停用配置、关闭开机应用；
-50 系仍不写入下限寄存器。勾选开机应用后，还需要点击“安装服务”。
+v1.6 起所有机型均不写入下限寄存器。勾选开机应用后，还需要点击“安装服务”。
 服务执行一次后自动停止释放内存。
 
 On first launch, v1.5 saves the raw EC upper/lower bytes to
@@ -15,8 +41,7 @@ Backup failure blocks applying settings and installing the service. A missing or
 backup blocks restoration. The snapshot represents the first reading, not necessarily
 factory defaults if an earlier version already changed the EC.
 Restore writes and verifies the saved values, then saves a disabled 0/0 configuration
-and disables startup application. On 50-series systems, the lower register remains
-untouched. Select Install service to enable automatic startup application;
+and disables startup application. Starting with v1.6, the lower register remains untouched on all systems. Select Install service to enable automatic startup application;
 the service stops and releases its memory after one attempt.
 
 # 因为机械革命系列充电策略未做好，40系等老款在本软件开启了智能充电依旧可能涓流充电至100
@@ -85,7 +110,7 @@ C:\Program Files\OEM\BatteryManager\log\service.log
 安全行为：
 
 - 开机写入默认关闭，必须在 GUI 中明确启用。
-- 只允许访问 EC `0x07B9`。
+- 只写入上限 `0x07B9` 和充电档位 `0x07A6` bits[5:4]；下限只读。
 - 强制检查 `1 <= 充电上限 <= 100`。
 - 写入前读取原值，每次写入后回读验证。
 - 服务每次启动只执行一次，不循环写入 EC。
@@ -133,7 +158,7 @@ An older `C:\ProgramData\MechrevoBatteryManager\config.json` is read for compati
 Safe behavior:
 
 - Boot-time writing is disabled by default and must be explicitly enabled in the GUI.
-- Only access to EC `0x07B9` is allowed.
+- Writes are limited to upper threshold `0x07B9` and charging profile bits[5:4] of `0x07A6`; the lower register is read-only.
 - Perform a mandatory check to ensure that `1 <= charging upper limit <= 100`.
 - Read the original value before writing, and perform readback verification after each write.
 - The service is executed only once each time it is started, and does not write to EC repeatedly.

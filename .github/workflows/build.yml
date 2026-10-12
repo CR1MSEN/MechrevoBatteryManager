@@ -10,3 +10,6 @@ jobs:
       - name: Build x64 Release
         shell: pwsh
         run: .\build.ps1 -Configuration Release
+      - name: Test core without hardware
+        shell: pwsh
+        run: .\tests\run.ps1
