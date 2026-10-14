@@ -72,10 +72,6 @@ class Tests
         });
         Run("disabled accesses no EC", delegate { ThresholdManager.ApplyToEc(null, Config(0), false); });
         Run("lower input rejected", delegate { var c = Config(80); c.LowerLimit = 20; Fails(c.Validate); });
-        Run("unverified lighting rejected", delegate {
-            var c = Config(80); c.TurnOffChargingLight = true; Fails(c.Validate);
-            c.TurnOffChargingLight = false; c.WhiteChargingLightAtLimit = true; Fails(c.Validate);
-        });
         foreach (uint address in new [] { ThresholdManager.ProfileAddress, ThresholdManager.UpperAddress })
         {
             uint captured = address;

@@ -12,15 +12,13 @@ namespace MechrevoBatteryManager
         public int StartupDelaySeconds { get; set; }
         public string OemDllPath { get; set; }
         public bool DriverSearchCompleted { get; set; }
-        public bool TurnOffChargingLight { get; set; }
-        public bool WhiteChargingLightAtLimit { get; set; }
 
         public BatteryConfig()
         {
             UpperLimit = 80;
             LowerLimit = 0;
             StartupDelaySeconds = 10;
-            OemDllPath = @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService\MyControlCenter\ACPIDriverDll.dll";
+            OemDllPath = ThresholdManager.DriverPath;
         }
 
         public static string DirectoryPath { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "MechrevoBatteryManager"); } }
@@ -37,6 +35,7 @@ namespace MechrevoBatteryManager
             if (!File.Exists(path)) return new BatteryConfig();
             var config = new JavaScriptSerializer().Deserialize<BatteryConfig>(File.ReadAllText(path)) ?? new BatteryConfig();
             config.LowerLimit = 0; // Migrate old configs: writing lower breaks the upper limit on these machines.
+            config.OemDllPath = ThresholdManager.DriverPath;
             return config;
         }
         public void Save()
@@ -47,7 +46,6 @@ namespace MechrevoBatteryManager
         public void Validate()
         {
             if (LowerLimit != 0 || UpperLimit < 0 || UpperLimit > 100) throw new InvalidOperationException("Required: lower = 0 (never written), 0 <= upper <= 100; upper = 0 disables application.");
-            if (TurnOffChargingLight || WhiteChargingLightAtLimit) throw new InvalidOperationException("充电灯寄存器及关闭/白色控制值尚未确认，不能启用。Charging LED control is not yet verified.");
             if (StartupDelaySeconds < 0 || StartupDelaySeconds > 300) throw new InvalidOperationException("Startup delay must be between 0 and 300 seconds.");
             if (string.IsNullOrWhiteSpace(OemDllPath)) throw new InvalidOperationException("OEM DLL path is required.");
         }

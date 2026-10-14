@@ -14,10 +14,12 @@ Copy-Item (Join-Path $projectRoot "MechrevoBatteryManager.Core\bin\$Configuratio
 Copy-Item (Join-Path $projectRoot "MechrevoBatteryManager.Gui\bin\$Configuration\MechrevoBatteryManager.exe") (Join-Path $dist 'MechrevoBatteryManager.exe') -Force
 Copy-Item (Join-Path $projectRoot "MechrevoBatteryManager.Service\bin\$Configuration\MechrevoBatteryManager.Service.exe") (Join-Path $dist 'MechrevoBatteryManager.Service.payload') -Force
 Copy-Item (Join-Path $projectRoot 'MechrevoBatteryManager.Service\Uninstall-MechrevoBatteryManager.cmd') (Join-Path $dist 'Uninstall-MechrevoBatteryManager.cmd') -Force
+New-Item -ItemType Directory -Path (Join-Path $dist 'driver') -Force | Out-Null
+Copy-Item (Join-Path $repo 'driver\ACPIDriverDll.dll') (Join-Path $dist 'driver\ACPIDriverDll.dll') -Force
 Write-Host "Build complete: $dist"
 if ($Package) {
   $release = Join-Path $repo 'release'; New-Item -ItemType Directory -Path $release -Force | Out-Null
-  $archive = Join-Path $release ("MechrevoBatteryManager-v1.6.1-win-x64.zip")
+  $archive = Join-Path $release ("MechrevoBatteryManager-v2.0.0-win-x64.zip")
   if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
   $staging = Join-Path $release 'package'; if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }; New-Item -ItemType Directory -Path $staging | Out-Null
   Copy-Item -LiteralPath $dist -Destination (Join-Path $staging 'dist') -Recurse

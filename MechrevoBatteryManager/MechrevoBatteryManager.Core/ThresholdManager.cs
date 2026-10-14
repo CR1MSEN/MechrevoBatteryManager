@@ -43,8 +43,8 @@ namespace MechrevoBatteryManager
         public const uint LowerAddress = 0x07D0;
         public const uint ProfileAddress = 0x07A6;
         public const byte ProfileMask = 0x30;
-        // User-supplied PowerLight_LEDPWM address, not a verified color control.
-        public const uint PowerLightPwmAddress = 0x07F8;
+        public const string DriverDirectory = @"C:\Program Files\OEM\BatteryManager";
+        public const string DriverPath = DriverDirectory + "\\ACPIDriverDll.dll";
         private static readonly object Sync = new object();
 
         public static void EnsureDefaults(string dllPath, string path = null)

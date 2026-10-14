@@ -16,9 +16,6 @@ namespace MechrevoBatteryManager.Gui
         private readonly NumericUpDown lower = new NumericUpDown { Minimum = 0, Maximum = 99, Width = 90 };
         private int startupDelaySeconds = 10;
         private bool driverSearchCompleted;
-        private readonly CheckBox lightOff = new CheckBox { AutoSize = true, Enabled = false };
-        private readonly CheckBox lightWhite = new CheckBox { AutoSize = true, Enabled = false };
-        private readonly Label lightHint = new Label { AutoSize = true, MaximumSize = new Size(560, 0) };
         private bool updatingLanguage;
         private readonly CheckBox enabled = new CheckBox { Text = "Apply once after Windows starts", AutoSize = true };
         private readonly TextBox dllPath = new TextBox { Width = 390, AutoSize = true };
@@ -38,16 +35,13 @@ namespace MechrevoBatteryManager.Gui
         {
             this.initializeHardware = initializeHardware;
             Text = "MechrevoBatteryManager"; ClientSize = new Size(790, 450); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; Font = new Font("Microsoft YaHei", 9F, FontStyle.Regular, GraphicsUnit.Point);
-            var panel = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20, 48, 20, 20), ColumnCount = 2, RowCount = 9, AutoSize = true };
+            var panel = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20, 48, 20, 20), ColumnCount = 2, RowCount = 7, AutoSize = true };
             panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130)); panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             var dllPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Anchor = AnchorStyles.Left }; dllPanel.Controls.Add(dllPath); dllPanel.Controls.Add(Button("重新检索", "Rescan", delegate { SearchDriver(); }));
             upperLabel = Add(panel, "充电截止阈值 (%)", upper); lowerLabel = Add(panel, "复充启动阈值 (%)", lower); dllLabel = Add(panel, "OEM 驱动 DLL", dllPanel);
             language.Items.AddRange(new object[] { "中文 / Chinese", "English / 英文" }); language.SelectedIndex = 0; language.SelectedIndexChanged += delegate { ApplyLanguage(); };
             var languageBar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 34, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 6, 18, 0) }; languageBar.Controls.Add(language); languageBar.Controls.Add(new Label { Text = "语言 / Language", AutoSize = true, Padding = new Padding(0, 5, 6, 0) });
             panel.Controls.Add(enabled, 1, 3);
-            panel.Controls.Add(lightOff, 1, 4); panel.Controls.Add(lightWhite, 1, 5); panel.Controls.Add(lightHint, 1, 6);
-            lightOff.CheckedChanged += delegate { if (lightOff.Checked) lightWhite.Checked = false; };
-            lightWhite.CheckedChanged += delegate { if (lightWhite.Checked) lightOff.Checked = false; };
             enabled.Click += delegate {
                 if (enabled.Checked) MessageBox.Show(this,
                     English ? "For applying saved settings at startup, we recommend using Install service. The service is designed to stop after one attempt and release its memory, so you do not need to keep this app open."
@@ -57,9 +51,10 @@ namespace MechrevoBatteryManager.Gui
             var actions = new FlowLayoutPanel { AutoSize = true, MaximumSize = new Size(600, 0) };
             actions.Controls.Add(Button("读取 EC", "Read EC", delegate { ReadEc(); })); actions.Controls.Add(Button("立即应用", "Apply now", delegate { ApplyNow(); })); actions.Controls.Add(Button("保存", "Save", delegate { Save(); })); actions.Controls.Add(Button("恢复默认", "Restore defaults", delegate { RestoreDefaults(); })); actions.Controls.Add(Button("安装服务", "Install service", delegate { InstallService(); })); actions.Controls.Add(Button("卸载服务", "Uninstall service", delegate { RemoveService(); }));
             actions.Controls.Add(Button("驱动诊断", "Diagnostics", delegate { ShowDiagnostics(); }));
-            panel.Controls.Add(actions, 1, 7); panel.Controls.Add(status, 1, 8); Controls.Add(panel); Controls.Add(languageBar); ApplyLanguage();
+            panel.Controls.Add(actions, 1, 5); panel.Controls.Add(status, 1, 6); Controls.Add(panel); Controls.Add(languageBar); ApplyLanguage();
             lower.Value = 0; lower.Enabled = false;
             if (initializeHardware) Guard(delegate {
+                EnsureBundledDriver();
                 LoadConfig(); IsSeries50 = dllPath.Text.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (!driverSearchCompleted) DetectInstalledConsole();
             });
@@ -79,25 +74,14 @@ namespace MechrevoBatteryManager.Gui
             button.Click += click;
             return button;
         }
-        private BatteryConfig Current() { return new BatteryConfig { UpperLimit = (int)upper.Value, LowerLimit = 0, StartupDelaySeconds = startupDelaySeconds, Enabled = enabled.Checked, OemDllPath = dllPath.Text, DriverSearchCompleted = driverSearchCompleted, TurnOffChargingLight = lightOff.Checked, WhiteChargingLightAtLimit = lightWhite.Checked }; }
-        private void LoadConfig() { var c = BatteryConfig.Load(); upper.Value = c.UpperLimit; lower.Value = c.LowerLimit; startupDelaySeconds = c.StartupDelaySeconds; enabled.Checked = c.Enabled; dllPath.Text = c.OemDllPath; driverSearchCompleted = c.DriverSearchCompleted; lightOff.Checked = c.TurnOffChargingLight; lightWhite.Checked = c.WhiteChargingLightAtLimit; }
+        private BatteryConfig Current() { return new BatteryConfig { UpperLimit = (int)upper.Value, LowerLimit = 0, StartupDelaySeconds = startupDelaySeconds, Enabled = enabled.Checked, OemDllPath = dllPath.Text, DriverSearchCompleted = driverSearchCompleted }; }
+        private void LoadConfig() { var c = BatteryConfig.Load(); upper.Value = c.UpperLimit; lower.Value = c.LowerLimit; startupDelaySeconds = c.StartupDelaySeconds; enabled.Checked = c.Enabled; dllPath.Text = string.IsNullOrWhiteSpace(c.OemDllPath) ? ThresholdManager.DriverPath : c.OemDllPath; driverSearchCompleted = c.DriverSearchCompleted; }
         private void DetectInstalledConsole()
         {
-            var roots = new[] {
-                @"C:\Program Files\OEM\机械革命电竞控制台\AiStoneService",
-                @"C:\Program Files\OEM\机械革命控制中心\AiStoneService"
-            };
-            var candidates = new List<string>();
-            foreach (var root in roots)
-                if (Directory.Exists(root)) candidates.AddRange(Directory.GetFiles(root, "ACPIDriverDll.dll", SearchOption.AllDirectories));
-            if (candidates.Count == 0 && Directory.Exists(@"C:\Program Files\OEM"))
-                candidates.AddRange(Directory.GetFiles(@"C:\Program Files\OEM", "ACPIDriverDll.dll", SearchOption.AllDirectories));
-            string detectedDll = null;
-            foreach (var candidate in candidates)
-                try { OemDriverInfo.Validate(candidate); detectedDll = candidate; break; }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-                catch (InvalidOperationException) { }
+            string detectedDll = File.Exists(ThresholdManager.DriverPath) ? ThresholdManager.DriverPath : null;
+            if (detectedDll != null)
+                try { OemDriverInfo.Validate(detectedDll); }
+                catch { detectedDll = null; }
             driverSearchCompleted = true;
             var config = Current();
             if (detectedDll == null)
@@ -106,18 +90,22 @@ namespace MechrevoBatteryManager.Gui
                 SetStatus(() => English ? "No compatible x64 OEM DLL with ReadEC/WriteEC was found. Use Diagnostics to check the configured path." : "未找到带 ReadEC/WriteEC 导出的兼容 x64 OEM DLL，请通过“驱动诊断”检查当前路径。");
                 return;
             }
-            IsSeries50 = detectedDll.IndexOf("机械革命控制中心", StringComparison.OrdinalIgnoreCase) >= 0;
-            var series = IsSeries50 ? "50" : "OEM";
             dllPath.Text = detectedDll;
             config.OemDllPath = detectedDll;
             config.Save();
-            SetStatus(() => English ? string.Format("{0} series console detected; the DLL path was updated.", series) : string.Format("你当前安装的是{0}系控制台，已自动更新 DLL 路径。", series));
+            SetStatus(() => English ? "Bundled OEM driver installed in " + ThresholdManager.DriverDirectory : "已将内置 OEM 驱动安装到 " + ThresholdManager.DriverDirectory);
+        }
+        private string BundledDriverPath() { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "driver", "ACPIDriverDll.dll"); }
+        private void EnsureBundledDriver()
+        {
+            if (File.Exists(ThresholdManager.DriverPath)) return;
+            var source = BundledDriverPath();
+            if (!File.Exists(source)) return;
+            Directory.CreateDirectory(ThresholdManager.DriverDirectory);
+            File.Copy(source, ThresholdManager.DriverPath, false);
+            OemDriverInfo.Validate(ThresholdManager.DriverPath);
         }
         private void ApplyLanguage() { if (updatingLanguage) return; updatingLanguage = true; try { bool en = English; Text = en ? "MechrevoBatteryManager" : "机械革命电池管理器"; upperLabel.Text = en ? "Charge limit (%)" : "充电截止阈值 (%)"; lowerLabel.Text = en ? "Lower (not written)" : "下限（不写入）"; dllLabel.Text = en ? "OEM driver DLL" : "OEM 驱动 DLL"; enabled.Text = en ? "Apply once after Windows starts" : "开机后应用一次";
-            lightOff.Text = en ? "Turn off charging light (pending verification)" : "关闭充电灯（控制值待确认）";
-            lightWhite.Text = en ? "White light at charge limit (pending verification)" : "达到充电阈值后变为白色（控制值待确认）";
-            lightHint.Text = en ? "GCU has a SetPowerLedStatus entry point, but its parameters are protected. Charging light control is unavailable; see Diagnostics."
-                : "GCU 已发现 SetPowerLedStatus 接口，但参数尚未查明，充电灯选项暂不可用；可查看“驱动诊断”。";
             foreach (var update in updateButtonLanguages) update(); if (statusMessage != null) status.Text = statusMessage(); } finally { updatingLanguage = false; } }
         private void ShowDiagnostics()
         {
@@ -147,7 +135,7 @@ namespace MechrevoBatteryManager.Gui
         {
             Guard(delegate {
                 var r = ThresholdManager.Reset(dllPath.Text, IsSeries50);
-                enabled.Checked = false; lightOff.Checked = false; lightWhite.Checked = false;
+                enabled.Checked = false;
                 upper.Value = 0; lower.Value = 0; Current().Save();
                 var skippedLower = true;
                 SetStatus(() => English
@@ -185,6 +173,8 @@ namespace MechrevoBatteryManager.Gui
             Guard(delegate
             {
                 if (!ConfigureServiceDelay()) return;
+                EnsureBundledDriver();
+                dllPath.Text = ThresholdManager.DriverPath;
                 Current().Save();
                 ThresholdManager.EnsureDefaults(dllPath.Text);
                 using (var key = Registry.LocalMachine.CreateSubKey(@"Software\MechrevoBatteryManager")) key.SetValue("UserProfile", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), RegistryValueKind.String);
@@ -205,6 +195,9 @@ namespace MechrevoBatteryManager.Gui
                 Directory.CreateDirectory(ServiceInstallDirectory);
                 File.Copy(ServiceSourceExe(), ServiceExe(), true);
                 File.Copy(CoreSourceDll(), Path.Combine(ServiceInstallDirectory, "MechrevoBatteryManager.Core.dll"), true);
+                var bundledDriver = BundledDriverPath();
+                if (!File.Exists(bundledDriver)) throw new FileNotFoundException("Bundled ACPIDriverDll.dll is missing.", bundledDriver);
+                File.Copy(bundledDriver, ThresholdManager.DriverPath, true);
                 var uninstallSource = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Uninstall-MechrevoBatteryManager.cmd");
                 if (File.Exists(uninstallSource)) File.Copy(uninstallSource, Path.Combine(ServiceInstallDirectory, "Uninstall-MechrevoBatteryManager.cmd"), true);
                 RunSc((query == 1060 ? "create" : "config") + " MechrevoBatteryManager binPath= \"" + ServiceExe() + "\" start= delayed-auto DisplayName= \"Mechrevo Battery Manager\"");
