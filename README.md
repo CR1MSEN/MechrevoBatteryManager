@@ -157,3 +157,4 @@ MechrevoBatteryManager\dist\
 The GitHub Actions workflow in `.github/workflows/build.yml` performs the same Release build on `windows-latest`.
 
 `.github/workflows/build.yml` 中的 GitHub Actions 工作流会在 `windows-latest` 上执行相同的 Release 构建。
+

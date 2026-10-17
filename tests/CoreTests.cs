@@ -70,6 +70,16 @@ class Tests
             var ec = new FakeEc(); ThresholdManager.ApplyToEc(ec, Config(80), false); ec.Writes = 0;
             var r = ThresholdManager.ApplyToEc(ec, Config(80), true); Check(ec.Writes == 0 && !r.Changed, "redundant write");
         });
+        Run("upper bit 7 is tolerated and preserved", delegate {
+            var ec = new FakeEc();
+            ec.Values[ThresholdManager.UpperAddress] = 0xE4; // 0x80 + 100
+            var before = ThresholdManager.ReadStateForTests(ec);
+            Check(before.BeforeUpper == 100, "high-bit upper was not normalized");
+            var result = ThresholdManager.ApplyToEc(ec, Config(80), false);
+            Check(result.BeforeUpper == 100 && result.AfterUpper == 80, "normalized result is wrong");
+            Check(ec.Values[ThresholdManager.UpperAddress] == 0xD0, "upper high bit was not preserved");
+            Check(ec.Values[ThresholdManager.LowerAddress] == 19, "lower modified");
+        });
         Run("disabled accesses no EC", delegate { ThresholdManager.ApplyToEc(null, Config(0), false); });
         Run("lower input rejected", delegate { var c = Config(80); c.LowerLimit = 20; Fails(c.Validate); });
         foreach (uint address in new [] { ThresholdManager.ProfileAddress, ThresholdManager.UpperAddress })

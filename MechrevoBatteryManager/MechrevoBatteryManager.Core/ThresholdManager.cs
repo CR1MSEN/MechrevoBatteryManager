@@ -43,6 +43,9 @@ namespace MechrevoBatteryManager
         public const uint LowerAddress = 0x07D0;
         public const uint ProfileAddress = 0x07A6;
         public const byte ProfileMask = 0x30;
+        // Some EC/GCU revisions return the upper limit with bit 7 set (0x80 + percent).
+        // Keep raw bytes for backup/rollback, but expose and verify the 7-bit percentage.
+        public const byte UpperValueMask = 0x7F;
         public const string DriverDirectory = @"C:\Program Files\OEM\BatteryManager";
         public const string DriverPath = DriverDirectory + "\\ACPIDriverDll.dll";
         private static readonly object Sync = new object();
@@ -87,9 +90,11 @@ namespace MechrevoBatteryManager
         private static ThresholdResult ReadState(IEcAccessor ec)
         {
             byte upper = ec.Read(UpperAddress), lower = ec.Read(LowerAddress), profile = ec.Read(ProfileAddress);
+            upper = NormalizeUpper(upper);
             return new ThresholdResult { BeforeUpper = upper, AfterUpper = upper, BeforeLower = lower, AfterLower = lower,
                 BeforeProfile = (byte)((profile & ProfileMask) >> 4), AfterProfile = (byte)((profile & ProfileMask) >> 4) };
         }
+        internal static ThresholdResult ReadStateForTests(IEcAccessor ec) { return ReadState(ec); }
         public static ThresholdResult Apply(BatteryConfig config, bool skipLower = false, string defaultsPath = null)
         {
             config.Validate();
@@ -112,7 +117,7 @@ namespace MechrevoBatteryManager
             int profile = config.UpperLimit <= 60 ? 2 : config.UpperLimit <= 80 ? 1 : 0;
             // Select the profile before writing the custom threshold: firmware may set a preset on mode change.
             changes.Add(new Change(ProfileAddress, (byte)(profile << 4), ProfileMask));
-            changes.Add(new Change(UpperAddress, (byte)config.UpperLimit, 0xFF));
+            changes.Add(new Change(UpperAddress, (byte)config.UpperLimit, UpperValueMask));
 
             return Execute(ec, changes, settle);
         }
@@ -129,11 +134,12 @@ namespace MechrevoBatteryManager
             var changes = new List<Change>();
             // Restore only the charging bits; unrelated mode bits may have changed since the backup.
             if (defaults.ProfileRaw.HasValue) changes.Add(new Change(ProfileAddress, (byte)defaults.ProfileRaw.Value, ProfileMask));
-            changes.Add(new Change(UpperAddress, (byte)defaults.UpperRaw.Value, 0xFF));
+            changes.Add(new Change(UpperAddress, (byte)defaults.UpperRaw.Value, UpperValueMask));
 
             return Execute(ec, changes, settle);
         }
         private static void Settle() { Thread.Sleep(150); }
+        private static byte NormalizeUpper(byte raw) { return (byte)(raw & UpperValueMask); }
         private sealed class Change
         {
             internal readonly uint Address;

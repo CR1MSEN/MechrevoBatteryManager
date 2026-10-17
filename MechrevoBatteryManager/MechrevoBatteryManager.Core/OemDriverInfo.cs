@@ -112,7 +112,7 @@ namespace MechrevoBatteryManager
             text.AppendLine(english ? "Automatic profile: 1–60% stationary; 61–80% balanced; 81–100% capacity. Custom ranges are this app's policy." : "自动联动：1–60% 工作站；61–80% 平衡；81–100% 长效。自定义区间是本软件的策略。");
             text.AppendLine();
             text.AppendLine(english ? "Local GCU 1.0.2.70 static inspection found SetBatteryChargingLimit_Up(Int32) and SetPowerLedStatus(UInt32). Their implementations are protected. This finding does not verify other installed versions." : "本机 GCU 1.0.2.70 静态检查发现 SetBatteryChargingLimit_Up(Int32) 和 SetPowerLedStatus(UInt32)，但实现已被保护；该结论不代表其他版本已验证。");
-            text.AppendLine(english ? "Charging-light controls are not included in v2.0." : "v2.0 不包含充电灯控制功能。");
+            text.AppendLine(english ? "Charging-light controls are not included in v2.1." : "v2.1 不包含充电灯控制功能。");
             text.AppendLine(english ? "NVRAM battery fields and BatteryProtection/Control exist in the inspected GCU, but their write protocol is unknown and is not used here." : "已发现 NVRAM 电池字段和 BatteryProtection/Control，但写入协议未确认，本程序不调用这些路径。");
             return text.ToString();
         }
